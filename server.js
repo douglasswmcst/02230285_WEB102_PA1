@@ -1,6 +1,5 @@
 const http = require('http');
 const fs = require('fs');
-const { parse } = require('querystring');
 const crypto = require('crypto');
 
 const PORT = 3000;
@@ -222,10 +221,10 @@ const server = http.createServer((req, res) => {
             res.end(JSON.stringify({ error: 'Internal Server Error' }));
             return;
           }
-
-          res.writeHead(201, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ message: 'User registered successfully' }));
         });
+
+        res.writeHead(201, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'User registered successfully' }));
       });
     });
   }
@@ -345,7 +344,7 @@ const server = http.createServer((req, res) => {
     });
   }
 
-  // Login user
+  // Login a user
   else if (url === '/login' && method === 'POST') {
     let body = '';
     req.on('data', chunk => {
@@ -362,44 +361,52 @@ const server = http.createServer((req, res) => {
 
         const users = JSON.parse(data);
         const user = users.find(u => u.username === username);
-        if (!user || !verifyPassword(password, user.salt, user.hash)) {
-          res.writeHead(401, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Invalid username or password' }));
+        if (!user) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'User not found' }));
           return;
         }
 
-        sessionToken = crypto.randomBytes(16).toString('hex'); // Update session token
+        const hashedPassword = crypto.pbkdf2Sync(password, user.salt, 10000, 64, 'sha512').toString('hex');
+        if (hashedPassword!== user.hash) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid password' }));
+          return;
+        }
+
+        // Generate a session token
+        sessionToken = crypto.randomBytes(32).toString('hex');
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ token: sessionToken }));
+        res.end(JSON.stringify({ message: 'Login successful', sessionToken }));
       });
     });
   }
 
   // Protected route example
   else if (url === '/protected' && method === 'GET') {
-    const token = req.headers['authorization'];
-    if (token !== sessionToken) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader ||!authHeader.startsWith('Bearer ')) {
       res.writeHead(401, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Unauthorized, Invalid token' }));
       return;
     }
 
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ message: 'Access granted to protected resource' }));
-  }
+    const token = authHeader.substring(7); // Extract the token after "Bearer "
+    console.log("Received token:", token); // Log the received token for debugging
 
-  // Handle invalid endpoints
-  else {
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Endpoint not found' }));
+    // Simplified token validation for debugging
+    if (token!== sessionToken) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized, Invalid token' }));
+      return;
+    } else {
+      console.log("Token validated successfully"); // Log success for debugging
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ message: 'Access granted to protected resource' }));
+    }
   }
 });
 
 server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
-
-function verifyPassword(password, salt, hash) {
-  const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
-  return hash === hashedPassword;
-}
