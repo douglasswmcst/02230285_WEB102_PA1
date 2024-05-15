@@ -2,7 +2,7 @@ const http = require("node:http");
 const fs = require("fs");
 const crypto = require("crypto");
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const PRODUCTS_FILE_PATH = "products.json";
 const USERS_FILE_PATH = "users.json";
 let sessionToken = ""; // Global variable to store session token
