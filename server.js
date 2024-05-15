@@ -2,7 +2,7 @@ const http = require("node:http");
 const fs = require("fs");
 const crypto = require("crypto");
 
-const PORT = process.env.PORT || 3000;
+const port = process.env.PORT || 3000;
 const PRODUCTS_FILE_PATH = "products.json";
 const USERS_FILE_PATH = "users.json";
 let sessionToken = ""; // Global variable to store session token
@@ -421,6 +421,6 @@ const server = http.createServer((req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
